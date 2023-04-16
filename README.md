@@ -1,13 +1,13 @@
 # CompOrg-Project
 
-Team Members: 
-Andy Zhu (zhua6)
-Lenny Kinsman (kinsml)
-Emma Viani (vianie)
-Evelyn Mah (mahr)
+Team Members: </br>
+Andy Zhu (zhua6) </br>
+Lenny Kinsman (kinsml) </br>
+Emma Viani (vianie) </br>
+Evelyn Mah (mahr) </br>
 
-Roles: 
-Andy Zhu 		----> P1) Input parsing of assembly to machine code
-Emma Viani 	----> P2) Circuits for ALU, Adder32, sign extender, memory
-Lenny Kinsman  ----> P3) Setting Control bits and ALU Control bits
+Roles: </br>
+Andy Zhu 		----> P1) Input parsing of assembly to machine code </br>
+Emma Viani 	----> P2) Circuits for ALU, Adder32, sign extender, memory </br>
+Lenny Kinsman  ----> P3) Setting Control bits and ALU Control bits </br>
 Evelyn Mah		----> P4) updateState() function
