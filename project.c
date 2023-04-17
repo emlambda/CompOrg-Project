@@ -330,7 +330,58 @@ void ALU_Control(BIT* ALUOp, BIT* funct, BIT* ALUControl)
   //        binary instruction
   // Output:4-bit ALUControl for input into the ALU
   // Note: Can use SOP or similar approaches to determine bits
+
+  //0000 - AND
+  //0010 - OR
+  //0001 - ADD
+  //0101 - SUB
+  //0111 - SLT
+  //1111 - NOR
   
+}
+
+void ALU1(BIT A, BIT B, BIT Ainvert, BIT Binvert, BIT CarryIn, BIT Less, 
+BIT Op0, BIT Op1, BIT* Result, BIT* CarryOut, BIT* Set, BIT* Zero)
+{
+  // TODO: implement a 1-bit ALU 
+  // Note: this will need modifications from Lab 5 to account for 'slt'
+  // See slide 30 in Chapter-3d
+  
+  BIT x0 = multiplexor2(Binvert, B, not_gate(B));
+  BIT x1 = multiplexor2(Ainvert, A, not_gate(A));
+  BIT y0 = and_gate(x1, x0);
+  BIT y1 = or_gate(x1, x0);
+  
+  BIT y2 = FALSE;
+  adder1(x1, x0, CarryIn, CarryOut, &y2); 
+  *Set = y2;
+  
+  BIT y3 = Less; 
+  
+  *Result = multiplexor4(Op0, Op1, y0, y1, y2, y3);
+  
+  *Zero = or_gate(*Result, *Zero);
+}
+
+void ALU32(BIT* A, BIT* B, BIT Ainvert, BIT Binvert, BIT CarryIn, 
+  BIT Op0, BIT Op1, BIT* Result, BIT* CarryOut, BIT* Zero)
+{
+  // TODO: implement a 32-bit ALU
+  // You'll need to essentially implement a 32-bit ripple addder here
+  // See slide 31 in Chapter-3d
+  BIT Less = FALSE;
+  BIT Set = FALSE;
+  ALU1(A[0], B[0], Ainvert, Binvert, CarryIn, Less, 
+    Op0, Op1, &Result[0], CarryOut, &Set, Zero);
+  for (int i = 1; i < 32; ++i) {
+    ALU1(A[i], B[i], Ainvert, Binvert, *CarryOut, Less, 
+      Op0, Op1, &Result[i], CarryOut, &Set, Zero);
+  }
+  
+  Less = Set;
+  ALU1(A[0], B[0], Ainvert, Binvert, CarryIn, Less, 
+    Op0, Op1, &Result[0], CarryOut, &Set, Zero);
+  *Zero = not_gate(*Zero);
 }
 
 void ALU(BIT* ALUControl, BIT* Input1, BIT* Input2, BIT* Zero, BIT* Result)
@@ -339,6 +390,10 @@ void ALU(BIT* ALUControl, BIT* Input1, BIT* Input2, BIT* Zero, BIT* Result)
   // Input: 4-bit ALUControl, two 32-bit inputs
   // Output: 32-bit result, and zero flag big
   // Note: Can re-use prior implementations (but need new circuitry for zero)
+  BIT Carryout;
+
+  ALU32(Input1,Input2,ALUControl[0], ALUControl[1], ALUControl[1], ALUControl[2],
+    ALUControl[3], Result, &Carryout, Zero);
   
 }
 
