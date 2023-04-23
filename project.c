@@ -60,12 +60,13 @@ int get_instructions(BIT Instructions[][32]);
 
 void Instruction_Memory(BIT* ReadAddress, BIT* Instruction);
 void Control(BIT* OpCode,
-  BIT* RegDst, BIT* Jump, BIT* Branch, BIT* MemRead, BIT* MemToReg,
-  BIT* ALUOp, BIT* MemWrite, BIT* ALUSrc, BIT* RegWrite);
+  BIT* RegDst, BIT* Jump, BIT* Branch, BIT* MemToReg,
+  BIT* ALUOp, BIT* MemWrite, BIT* ALUImm, BIT* RegWrite, 
+  BIT* Link);
 void Read_Register(BIT* ReadRegister1, BIT* ReadRegister2,
   BIT* ReadData1, BIT* ReadData2);
 void Write_Register(BIT RegWrite, BIT* WriteRegister, BIT* WriteData);
-void ALU_Control(BIT* ALUOp, BIT* funct, BIT* ALUControl);
+void ALU_Control(BIT* ALUOp, BIT* funct, BIT* ALUControl, BIT* JumpReg);
 void ALU(BIT* ALUControl, BIT* Input1, BIT* Input2, BIT* Zero, BIT* Result);
 void Data_Memory(BIT MemWrite, BIT MemRead, 
   BIT* Address, BIT* WriteData, BIT* ReadData);
@@ -186,7 +187,7 @@ void multiplexor2_32(BIT S, BIT* I0, BIT* I1, BIT* Output)
 
 BIT multiplexor4(BIT S0, BIT S1, BIT I0, BIT I1, BIT I2, BIT I3)
 {
-  BIT x0, x1, x2, x3 = FALSE;
+  BIT x0 , x1, x2, x3 = FALSE;
   BIT S[] = {S0, S1};
   BIT O[] = {I0,I1,I2,I3};
   decoder2(S,TRUE, O);
@@ -349,16 +350,75 @@ void Instruction_Memory(BIT* ReadAddress, BIT* Instruction)
   
 }
 
+BIT MemToRegCircuit(BIT* OpCode){
+    BIT return_bit = and_gate3(OpCode[0], OpCode[1], \
+                and_gate3(not_gate(OpCode[2]), not_gate(OpCode[3]), \
+                and_gate(not_gate(OpCode[4]), OpCode[5])));
+    return return_bit;
+}
+BIT MemWriteCircuit(BIT* OpCode){
+    BIT return_bit = and_gate3(OpCode[0], OpCode[1], \
+                and_gate3(not_gate(OpCode[2]), OpCode[3], \
+                and_gate(not_gate(OpCode[4]), OpCode[5])));
+    return return_bit;
+}
+
+BIT BranchCircuit(BIT* OpCode){
+    BIT return_bit =  and_gate3(not_gate(OpCode[0]), not_gate(OpCode[1]), \
+                and_gate3(OpCode[2], not_gate(OpCode[3]), \
+                and_gate(not_gate(OpCode[4]), not_gate(OpCode[5]) )));
+    return return_bit;
+}
+
+BIT RegDstCircuit(BIT* OpCode){
+    BIT return_bit =  and_gate3(not_gate(OpCode[0]), not_gate(OpCode[1]), \
+                and_gate3(not_gate(OpCode[2]), not_gate(OpCode[3]), \
+                and_gate(not_gate(OpCode[4]), not_gate(OpCode[5]) )));
+    return return_bit;
+}
+
+BIT LinkCircuit(BIT* OpCode){
+    BIT return_bit =  and_gate3(OpCode[0], OpCode[1], \
+                and_gate3(not_gate(OpCode[2]), not_gate(OpCode[3]), \
+                and_gate(not_gate(OpCode[4]), not_gate(OpCode[5]) )));
+    return return_bit;
+}
+
+BIT JumpCircuit(BIT* OpCode){
+    BIT return_bit =  and_gate3(not_gate(OpCode[0]), OpCode[1], \
+                and_gate3(not_gate(OpCode[2]), not_gate(OpCode[3]), \
+                and_gate(not_gate(OpCode[4]), not_gate(OpCode[5]) )));
+    return return_bit;
+
+}
+BIT AddiCircuit(BIT * OpCode){
+    BIT return_bit =  and_gate3(not_gate(OpCode[0]), not_gate(OpCode[1]), \
+                and_gate3(not_gate(OpCode[2]), OpCode[3], \
+                and_gate(not_gate(OpCode[4]), not_gate(OpCode[5]) )));
+    return return_bit;
+
+}
+
 void Control(BIT* OpCode,
-  BIT* RegDst, BIT* Jump, BIT* Branch, BIT* MemRead, BIT* MemToReg,
-  BIT* ALUOp, BIT* MemWrite, BIT* ALUSrc, BIT* RegWrite)
-{
+  BIT* RegDst, BIT* Jump, BIT* Branch, BIT* MemToReg,
+  BIT* ALUOp, BIT* MemWrite, BIT* ALUImm, BIT* RegWrite, 
+  BIT* Link) {
   // TODO: Set control bits for everything
   // Input: opcode field from the instruction
   // OUtput: all control lines get set 
   // Note: Can use SOP or similar approaches to determine bits
-  OpCode[0] = 1;
-  OpCode[1] = 3;
+  *MemToReg = MemToRegCircuit(OpCode);
+  *MemWrite = MemWriteCircuit(OpCode);
+  *Branch   = BranchCircuit(OpCode);
+  *RegDst   = RegDstCircuit(OpCode);
+  *Link     = LinkCircuit(OpCode);
+  *RegWrite = or_gate3(*RegDst, *Link, or_gate(*MemToReg, AddiCircuit(OpCode)));
+  *Jump     = or_gate(JumpCircuit(OpCode), *Link);
+  ALUOp[0] = or_gate3(AddiCircuit(OpCode), *MemToReg, *MemWrite);
+  ALUOp[1] = *Branch;
+  *ALUImm   = ALUOp[0];
+
+
   
 }
 
@@ -406,7 +466,7 @@ void Write_Register(BIT RegWrite, BIT* WriteRegister, BIT* WriteData)
   
 }
 
-void ALU_Control(BIT* ALUOp, BIT* funct, BIT* ALUControl)
+void ALU_Control(BIT* ALUOp, BIT* funct, BIT* ALUControl, BIT* JumpReg)
 {
   // TODO: Implement ALU Control circuit
   // Input: 2-bit ALUOp from main control circuit, 6-bit funct field from the
