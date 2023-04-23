@@ -347,7 +347,7 @@ void Instruction_Memory(BIT* ReadAddress, BIT* Instruction)
   // Output: 32-bit binary instruction
   // Note: Useful to use a 5-to-32 decoder here
   for(int i = 0; i < 32; i++){
-    
+
   }
   
 }
@@ -421,8 +421,8 @@ void ALU_Control(BIT* ALUOp, BIT* funct, BIT* ALUControl)
   //0001 - OR
   //0010 - ADD
   //0110 - SUB
-  //0111 - SLT
-  //1111 - NOR
+  //1110 - SLT
+  //1111 - return bit* a -- jr instruction
   
 }
 
@@ -478,8 +478,12 @@ void ALU(BIT* ALUControl, BIT* Input1, BIT* Input2, BIT* Zero, BIT* Result)
   // Note: Can re-use prior implementations (but need new circuitry for zero)
   BIT Carryout;
 
-  ALU32(Input1,Input2,ALUControl[1], ALUControl[0], ALUControl[1], ALUControl[2],
-    ALUControl[3], Result, &Carryout, Zero);
+  ALU32(Input1,Input2,ALUControl[0], ALUControl[1], ALUControl[1], ALUControl[3],
+    ALUControl[2], Result, &Carryout, Zero);
+
+  for (int i = 0; i < 32; i++){
+    Result[i] = multiplexor2(and_gate(ALUControl[3],ALUControl[2]),Input1[i],Result[i]);
+  }
   
 }
 
@@ -490,6 +494,7 @@ void Data_Memory(BIT MemWrite, BIT MemRead,
   // Input: 32-bit address, control flags for read/write, and data to write
   // Output: data read if processing a lw instruction
   // Note: Implementation similar as above
+  //mux to select value to be stored in register
   BIT add1[5];
   BIT add2[5];
   BIT 
