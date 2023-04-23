@@ -45,14 +45,14 @@ BIT xor_gate(BIT A, BIT B);
 BIT nor_gate(BIT A, BIT B);
 BIT nand_gate(BIT A, BIT B);
 
-void decoder2(BIT I0, BIT I1, BIT* O0, BIT* O1, BIT* O2, BIT* O3);
+void decoder2(BIT* I, BIT EN, BIT* O);
 BIT multiplexor2(BIT S, BIT I0, BIT I1);
 void multiplexor2_32(BIT S, BIT* I0, BIT* I1, BIT* Output);
 BIT multiplexor4(BIT S0, BIT S1, BIT I0, BIT I1, BIT I2, BIT I3);
 
 void copy_bits(BIT* A, BIT* B);
 void print_binary(BIT* A);
-void convert_to_binary(int a, BIT* A, int length);
+void convert_to_binary(int a, BIT* A);
 void convert_to_binary_char(int a, char* A, int length);
 int binary_to_integer(BIT* A);
 
@@ -119,17 +119,51 @@ BIT nand_gate(BIT A, BIT B)
   return not_gate(and_gate(A, B));
 }
 
-void decoder2(BIT I0, BIT I1, BIT* O0, BIT* O1, BIT* O2, BIT* O3)
+void decoder2(BIT* I, BIT EN, BIT* O)
 {
-  // Note: The input -> output mapping is modified from before
-  BIT nI1 = not_gate(I1);
-  BIT nI0 = not_gate(I0);
-  *O0 = and_gate(nI1, nI0);
-  *O1 = and_gate(nI1, I0);
-  *O2 = and_gate(I1, nI0);
-  *O3 = and_gate(I1,  I0);
+  BIT nI1 = not_gate(I[1]);
+  BIT nI0 = not_gate(I[0]);
+  O[0] = and_gate(nI1, nI0);
+  O[1] = and_gate(nI1, I[0]);
+  O[2] = and_gate(I[1], nI0);
+  O[3] = and_gate(I[1],  I[0]);
+  
+  // Note use of EN (enable) line below
+  for (int i = 0; i < 4; ++i)
+    O[i] = and_gate(EN, O[i]);
   
   return;
+}
+
+void decoder3(BIT* I, BIT EN, BIT* O)
+{
+  O[0] = and_gate3(not_gate(I[2]), not_gate(I[1]), not_gate(I[0]));
+  O[1] = and_gate3(not_gate(I[2]), not_gate(I[1]), I[0]);
+  O[2] = and_gate3(not_gate(I[2]), I[1], not_gate(I[0]));
+  O[3] = and_gate3(not_gate(I[2]), I[1], I[0]);
+  O[4] = and_gate3(I[2], not_gate(I[1]), not_gate(I[0]));
+  O[5] = and_gate3(I[2], not_gate(I[1]), I[0]);
+  O[6] = and_gate3(I[2], I[1], not_gate(I[0]));
+  O[7] = and_gate3(I[2], I[1], I[0]);
+  
+  for (int i = 0; i < 8; ++i)
+    O[i] = and_gate(EN, O[i]);
+  
+  return;
+}
+
+void decoder5(BIT* I, BIT EN, BIT* O)
+{
+   BIT EN_O[4] = {FALSE};
+   decoder2(&I[3], EN, EN_O);
+   decoder3(I, EN_O[3], &O[24]);
+   decoder3(I, EN_O[2], &O[16]);
+   decoder3(I, EN_O[1], &O[8]);
+   decoder3(I, EN_O[0], &O[0]);
+   
+  for (int i = 0; i < 32; ++i)
+    O[i] = and_gate(EN, O[i]);
+  
 }
 
 BIT multiplexor2(BIT S, BIT I0, BIT I1)
@@ -153,7 +187,9 @@ void multiplexor2_32(BIT S, BIT* I0, BIT* I1, BIT* Output)
 BIT multiplexor4(BIT S0, BIT S1, BIT I0, BIT I1, BIT I2, BIT I3)
 {
   BIT x0, x1, x2, x3 = FALSE;
-  decoder2(S0, S1, &x0, &x1, &x2, &x3);
+  BIT S[] = {S0, S1};
+  BIT O[] = {I0,I1,I2,I3};
+  decoder2(S,TRUE, O);
   
   BIT y0 = and_gate(x0, I0);
   BIT y1 = and_gate(x1, I1);
@@ -190,6 +226,26 @@ void convert_to_binary_char(int a, char* A, int length)
   // This might be useful in your get_instructions() function, if you use the
   // same approach that I use. It also might not be needed if you directly
   // convert the instructions to the proper BIT format.
+}
+
+void convert_to_binary(int a, BIT* A)
+{
+  // TODO: convert integer to 2's complement BIT representation
+  // Note: A[0] is least significant bit and A[31] is most significant bit
+  // For this function ONLY: you're allowed to use logical if-else statements
+  
+  if (a >= 0) {
+    for (int i = 0; i < 32; ++i) {
+      A[i] = (a % 2 == 1);
+      a /= 2;
+    }
+  } else {
+    a += 1;
+    for (int i = 0; i < 32; ++i) {
+      A[i] = (a % 2 == 0);
+      a /= 2;
+    }
+  }
 }
   
 int binary_to_integer(BIT* A)
@@ -311,6 +367,23 @@ void Read_Register(BIT* ReadRegister1, BIT* ReadRegister2,
   // Input: two 5-bit register addresses
   // Output: the values of the specified registers in ReadData1 and ReadData2
   // Note: Implementation will be very similar to instruction memory circuit
+  /*decoder5(ReadRegister1, TRUE, ReadData1);
+  decoder5(ReadRegister2, TRUE, ReadData2);*/
+  BIT Result1[32] = {FALSE};
+  decoder5(ReadRegister1, TRUE, Result1);
+  for (int i = 0; i < 32; i++){
+    for (int j = 0; j < 32; j++){
+      ReadData1[j] = multiplexor2(Result1[i],MEM_Register[i][j],ReadData1[j]);
+    }
+  }
+
+  BIT Result2[32] = {FALSE};
+  decoder5(ReadRegister2, TRUE, Result2);
+  for (int i = 0; i < 32; i++){
+    for (int j = 0; j < 32; j++){
+      ReadData2[j] = multiplexor2(Result2[i],MEM_Register[i][j],ReadData2[j]);
+    }
+  }
   
 }
 
@@ -320,6 +393,14 @@ void Write_Register(BIT RegWrite, BIT* WriteRegister, BIT* WriteData)
   // Input: one 5-bit register address, data to write, and control bit
   // Output: None, but will modify register file
   // Note: Implementation will again be similar to those above
+  BIT Result[32] = {FALSE};
+  decoder5(WriteRegister, RegWrite, Result);
+  for (int i = 0; i < 32; i++){
+    for (int j = 0; j < 32; j++){
+      MEM_Register[i][j] = multiplexor2(Result[i],WriteData[j], MEM_Register[i][j]);
+    }
+  }
+
   
 }
 
@@ -404,6 +485,7 @@ void Data_Memory(BIT MemWrite, BIT MemRead,
   // Input: 32-bit address, control flags for read/write, and data to write
   // Output: data read if processing a lw instruction
   // Note: Implementation similar as above
+  
   
 }
 
