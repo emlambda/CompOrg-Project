@@ -346,6 +346,9 @@ void Instruction_Memory(BIT* ReadAddress, BIT* Instruction)
   // Input: 32-bit instruction address
   // Output: 32-bit binary instruction
   // Note: Useful to use a 5-to-32 decoder here
+  for(int i = 0; i < 32; i++){
+    
+  }
   
 }
 
@@ -415,9 +418,9 @@ void ALU_Control(BIT* ALUOp, BIT* funct, BIT* ALUControl)
   // Note: Can use SOP or similar approaches to determine bits
 
   //0000 - AND
-  //0010 - OR
-  //0001 - ADD
-  //0101 - SUB
+  //0001 - OR
+  //0010 - ADD
+  //0110 - SUB
   //0111 - SLT
   //1111 - NOR
   
@@ -475,7 +478,7 @@ void ALU(BIT* ALUControl, BIT* Input1, BIT* Input2, BIT* Zero, BIT* Result)
   // Note: Can re-use prior implementations (but need new circuitry for zero)
   BIT Carryout;
 
-  ALU32(Input1,Input2,ALUControl[0], ALUControl[1], ALUControl[1], ALUControl[2],
+  ALU32(Input1,Input2,ALUControl[1], ALUControl[0], ALUControl[1], ALUControl[2],
     ALUControl[3], Result, &Carryout, Zero);
   
 }
@@ -487,7 +490,19 @@ void Data_Memory(BIT MemWrite, BIT MemRead,
   // Input: 32-bit address, control flags for read/write, and data to write
   // Output: data read if processing a lw instruction
   // Note: Implementation similar as above
-  
+  BIT add1[5];
+  BIT add2[5];
+  BIT 
+  for(int i = 6; i < 11; i++){
+    add1[i-6] = Address[i];
+  }
+  for(; i < 16; i++){
+    add2[i-11] = Address[i];
+  }
+  Read_Register()
+  for (int i = 0; i< 32; i++){
+    
+  }
   
 }
 
@@ -495,6 +510,12 @@ void Extend_Sign16(BIT* Input, BIT* Output)
 {
   // TODO: Implement 16-bit to 32-bit sign extender
   // Copy Input to Output, then extend 16th Input bit to 17-32 bits in Output
+  for(int i = 0; i < 16; i++){
+    Output[i] = Input[i];
+  }
+  for(; i < 32; i++){
+    Output[i] = Input[15];
+  }
   
 }
 
