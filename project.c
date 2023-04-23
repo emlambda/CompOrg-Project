@@ -357,6 +357,8 @@ void Control(BIT* OpCode,
   // Input: opcode field from the instruction
   // OUtput: all control lines get set 
   // Note: Can use SOP or similar approaches to determine bits
+  OpCode[0] = 1;
+  OpCode[1] = 3;
   
 }
 
