@@ -438,7 +438,7 @@ void Read_Register(BIT* ReadRegister1, BIT* ReadRegister2,
   decoder5(ReadRegister1, TRUE, Result1);
   for (int i = 0; i < 32; i++){
     for (int j = 0; j < 32; j++){
-      ReadData1[j] = multiplexor2(Result1[i],MEM_Register[i][j],ReadData1[j]);
+      ReadData1[j] = multiplexor2(Result1[i],ReadData1[j],MEM_Register[i][j]);
     }
   }
 
@@ -446,7 +446,7 @@ void Read_Register(BIT* ReadRegister1, BIT* ReadRegister2,
   decoder5(ReadRegister2, TRUE, Result2);
   for (int i = 0; i < 32; i++){
     for (int j = 0; j < 32; j++){
-      ReadData2[j] = multiplexor2(Result2[i],MEM_Register[i][j],ReadData2[j]);
+      ReadData2[j] = multiplexor2(Result2[i],ReadData2[j],MEM_Register[i][j]);
     }
   }
   
@@ -462,7 +462,7 @@ void Write_Register(BIT RegWrite, BIT* WriteRegister, BIT* WriteData)
   decoder5(WriteRegister, RegWrite, Result);
   for (int i = 0; i < 32; i++){
     for (int j = 0; j < 32; j++){
-      MEM_Register[i][j] = multiplexor2(Result[i],WriteData[j], MEM_Register[i][j]);
+      MEM_Register[i][j] = multiplexor2(Result[i], MEM_Register[i][j],WriteData[j]);
     }
   }
 
@@ -542,7 +542,7 @@ void ALU(BIT* ALUControl, BIT* Input1, BIT* Input2, BIT* Zero, BIT* Result)
     ALUControl[2], Result, &Carryout, Zero);
 
   for (int i = 0; i < 32; i++){
-    Result[i] = multiplexor2(and_gate(ALUControl[3],ALUControl[2]),Input1[i],Result[i]);
+    Result[i] = multiplexor2(and_gate(ALUControl[3],ALUControl[2]),Result[i],Input1[i]);
   }
   
 }
