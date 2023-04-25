@@ -227,6 +227,18 @@ void convert_to_binary_char(int a, char* A, int length)
   // This might be useful in your get_instructions() function, if you use the
   // same approach that I use. It also might not be needed if you directly
   // convert the instructions to the proper BIT format.
+  if (a >= 0) {
+    for (int i = 0; i < length; ++i) {
+      A[i] = (a % 2 == 1 ? '1' : '0');
+      a /= 2;
+    }
+  } else {
+    a += 1;
+    for (int i = 0; i < length; ++i) {
+      A[i] = (a % 2 == 0 ? '1' : '0');
+      a /= 2;
+    }
+  }
 }
 
 void convert_to_binary(int a, BIT* A)
@@ -262,6 +274,36 @@ int binary_to_integer(BIT* A)
   return (int)a;
 }
 
+void set_register(char* input, char* output) 
+{
+  if(strcmp(input, "zero") == 0) {
+    strncpy(output, "00000", 5);
+  }
+  else if(strcmp(input, "v0") == 0) {
+    strncpy(output, "01000", 5);
+  }
+  else if(strcmp(input, "a0") == 0) {
+    strncpy(output, "00100", 5);
+  }
+  if (strcmp(input, "t0") == 0) {
+    strncpy(output, "00010", 5);
+  }
+  else if(strcmp(input, "t1") == 0) {
+    strncpy(output, "10010", 5);
+  }
+  else if (strcmp(input, "s0") == 0) {
+    strncpy(output, "00001", 5);
+  }
+  else if(strcmp(input, "s1") == 0) {
+    strncpy(output, "10001", 5);
+  }
+  else if(strcmp(input, "sp") == 0) {
+    strncpy(output, "10111", 5);
+  }
+  else if(strcmp(input, "ra") == 0) {
+    strncpy(output, "11111", 5);
+  }
+}
 
 /******************************************************************************/
 /* Parsing functions */
@@ -286,9 +328,126 @@ int get_instructions(BIT Instructions[][32])
     // - Convert immediate field and jump address field to binary
     // - Use registers to get rt, rd, rs fields
     // Note: I parse everything as strings, then convert to BIT array at end
-  
+    BIT t_output[32] = {FALSE};
+    char inst[256] = {0};
+    char op1[256] = {0};
+    char op2[256] = {0};
+    char op3[256] = {0};
+
+    sscanf(line, "%s %s %s %s", inst, op1, op2, op3); //instructions of length 4
+    char output[33] = {0}; 
+    char rs[6] = {0}; //1
+    char rt[6] = {0}; //2 
+    char rd[6] = {0}; //3
+    char imm[17] = {0};
+    char address[27] = {0};
+
+    if(strcmp(inst, "lw") == 0) { //I-type
+      convert_to_binary_char(atoi(op3), imm, 16);
+      set_register(op1, rt);
+      set_register(op2, rs);
+      strncpy(&output[0], imm, 16);
+      strncpy(&output[16], rt, 5);
+      strncpy(&output[21], rs, 5);
+      strncpy(&output[26], "110001", 6);      
+    } else if(strcmp(inst, "sw") == 0) { //I-type
+      set_register(op1, rt);
+      set_register(op2, rs);    
+      convert_to_binary_char(atoi(op3), imm, 16);
+      strncpy(&output[0], imm, 16); 
+      strncpy(&output[16], rt, 5);
+      strncpy(&output[21], rs, 5);
+      strncpy(&output[26], "110101", 6);
+    } else if(strcmp(inst, "beq") == 0) { //I-type
+      convert_to_binary_char(atoi(op3), imm, 16);
+      set_register(op1, rt);
+      set_register(op2, rs);
+      strncpy(&output[0], imm, 16);
+      strncpy(&output[16], rt, 5);
+      strncpy(&output[21], rs, 5); 
+      strncpy(&output[26], "001000", 6);
+    } else if(strcmp(inst, "addi") == 0) { //I-type
+      convert_to_binary_char(atoi(op3), imm, 16);
+      set_register(op1, rt);
+      set_register(op2, rs);
+      strncpy(&output[0], imm, 16);
+      strncpy(&output[16], rt, 5);
+      strncpy(&output[21], rs, 5); 
+      strncpy(&output[26], "000100", 6);
+    } else if(strcmp(inst, "and") == 0) { //R-type
+      set_register(op1, rd);
+      set_register(op2, rs);
+      set_register(op3, rt);
+      strncpy(&output[0], "001001", 6);
+      strncpy(&output[6], "00000", 5);
+      strncpy(&output[11], rd, 5);
+      strncpy(&output[16], rt, 5);
+      strncpy(&output[21], rs, 5);
+      strncpy(&output[26], "000000", 6);  
+    } else if(strcmp(inst, "or") == 0) { //R-type 
+      set_register(op1, rd);
+      set_register(op2, rs);
+      set_register(op3, rt);
+      strncpy(&output[0], "101001", 6);
+      strncpy(&output[6], "00000", 5);
+      strncpy(&output[11], rd, 5);
+      strncpy(&output[16], rt, 5);
+      strncpy(&output[21], rs, 5);
+      strncpy(&output[26], "000000", 6); 
+    } else if(strcmp(inst, "add") == 0) { // R-type
+      set_register(op1, rd);
+      set_register(op2, rs);
+      set_register(op3, rt);
+      strncpy(&output[0], "000001", 6);
+      strncpy(&output[6], "00000", 5);
+      strncpy(&output[11], rd, 5);
+      strncpy(&output[16], rt, 5);
+      strncpy(&output[21], rs, 5);
+      strncpy(&output[26], "000000", 6);     
+    } else if(strcmp(inst, "sub") == 0) { // R-type
+      set_register(op1, rd);
+      set_register(op2, rs);
+      set_register(op3, rt);
+      strncpy(&output[0], "010001", 6);
+      strncpy(&output[6], "00000", 5);
+      strncpy(&output[11], rd, 5);
+      strncpy(&output[16], rt, 5);
+      strncpy(&output[21], rs, 5);
+      strncpy(&output[26], "000000", 6); 
+    } else if(strcmp(inst, "slt") == 0) { //R-type 
+      set_register(op1, rd);
+      set_register(op2, rs);
+      set_register(op3, rt);
+      strncpy(&output[0], "000001", 6);
+      strncpy(&output[6], "00000", 5);
+      strncpy(&output[11], rd, 5);
+      strncpy(&output[16], rt, 5);
+      strncpy(&output[21], rs, 5);
+      strncpy(&output[26], "010101", 6); 
+    } else if (strcmp(inst, "j") == 0) { //J-type
+      convert_to_binary_char(atoi(op1), address, 26);
+      strncpy(&output[0], address, 26);
+      strncpy(&output[26], "010000", 6);      
+    } else if(strcmp(inst, "jal") == 0) {  //J-type
+      convert_to_binary_char(atoi(op1), address, 26);
+      strncpy(&output[0], address, 26);
+      strncpy(&output[26], "110000", 6);  
+    } else if(strcmp(inst, "jr") == 0) { //R-type
+      set_register(op1, rs); 
+      strncpy(&output[0], "000100", 6);
+      strncpy(&output[6], rs, 5);
+      strncpy(&output[11], "000000000000000", 15);
+      strncpy(&output[26], "000100", 6);
+    } 
+    // Convert 'output' char array to 't_output' BIT array
+    for (int i = 0; i < 32; i++) {
+      t_output[i] = (output[i] == '1') ? TRUE : FALSE;
+    }
+    // Copy t_output to Instructions at the current instruction_count index
+    memcpy(Instructions[instruction_count], t_output, sizeof(BIT) * 32);
+
+    instruction_count++;
   }
-  
   return instruction_count;
 }
 
@@ -566,7 +725,7 @@ void Data_Memory(BIT MemWrite, BIT MemRead,
   }
   Read_Register()
   for (int i = 0; i< 32; i++){
-    
+  
   }
   
 }
@@ -624,4 +783,3 @@ int main()
 
   return 0;
 }
-
