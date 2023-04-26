@@ -1,10 +1,23 @@
 #include <assert.h>
-#include <stdio.h>
+#include <stdio.h> 
+#include "circuits.h"
 
 typedef char BIT;
 #define TRUE 1
 #define FALSE 0
 #define UNDEF -1
+
+BIT RegDst    = FALSE;
+BIT Jump      = FALSE; BIT Branch    = FALSE;
+BIT MemToReg  = FALSE;
+BIT ALUOp[2]  = {FALSE};
+BIT MemWrite  = FALSE;
+BIT ALUImm    = FALSE;
+BIT RegWrite  = FALSE;
+BIT Zero      = FALSE;
+BIT Link      = FALSE;
+BIT JumpReg   = FALSE;
+BIT ALUControl[4] = {FALSE};
 
 BIT not_gate(BIT A)
 {
@@ -133,73 +146,47 @@ BIT multiplexor4(BIT S0, BIT S1, BIT I0, BIT I1, BIT I2, BIT I3)
   return or_gate(z0, z1);
 }
 
-BIT MemToRegCircuit(BIT* OpCode){
-    BIT return_bit = and_gate3(OpCode[0], OpCode[1], \
-                and_gate3(not_gate(OpCode[2]), not_gate(OpCode[3]), \
-                and_gate(not_gate(OpCode[4]), OpCode[5])));
-    return return_bit;
-}
-BIT MemWriteCircuit(BIT* OpCode){
-    BIT return_bit = and_gate3(OpCode[0], OpCode[1], \
-                and_gate3(not_gate(OpCode[2]), OpCode[3], \
-                and_gate(not_gate(OpCode[4]), OpCode[5])));
-    return return_bit;
-}
-
-BIT BranchCircuit(BIT* OpCode){
-    BIT return_bit =  and_gate3(not_gate(OpCode[0]), not_gate(OpCode[1]), \
-                and_gate3(OpCode[2], not_gate(OpCode[3]), \
-                and_gate(not_gate(OpCode[4]), not_gate(OpCode[5]) )));
-    return return_bit;
-}
-
-BIT RegDstCircuit(BIT* OpCode){
-    BIT return_bit =  and_gate3(not_gate(OpCode[0]), not_gate(OpCode[1]), \
-                and_gate3(not_gate(OpCode[2]), not_gate(OpCode[3]), \
-                and_gate(not_gate(OpCode[4]), not_gate(OpCode[5]) )));
-    return return_bit;
-}
-
-BIT LinkCircuit(BIT* OpCode){
-    BIT return_bit =  and_gate3(OpCode[0], OpCode[1], \
-                and_gate3(not_gate(OpCode[2]), not_gate(OpCode[3]), \
-                and_gate(not_gate(OpCode[4]), not_gate(OpCode[5]) )));
-    return return_bit;
-}
-
-BIT JumpCircuit(BIT* OpCode){
-    BIT return_bit =  and_gate3(not_gate(OpCode[0]), OpCode[1], \
-                and_gate3(not_gate(OpCode[2]), not_gate(OpCode[3]), \
-                and_gate(not_gate(OpCode[4]), not_gate(OpCode[5]) )));
-    return return_bit;
-
-}
-BIT AddiCircuit(BIT * OpCode){
-    BIT return_bit =  and_gate3(not_gate(OpCode[0]), not_gate(OpCode[1]), \
-                and_gate3(not_gate(OpCode[2]), OpCode[3], \
-                and_gate(not_gate(OpCode[4]), not_gate(OpCode[5]) )));
-    return return_bit;
-
-}
-void Control(BIT* OpCode,
-  BIT* RegDst, BIT* Jump, BIT* Branch, BIT* MemToReg,
-  BIT* ALUOp, BIT* MemWrite, BIT* ALUImm, BIT* RegWrite, 
-  BIT* Link) {
+void Control(BIT* OpCode) {
   // TODO: Set control bits for everything
   // Input: opcode field from the instruction
   // OUtput: all control lines get set 
   // Note: Can use SOP or similar approaches to determine bits
-  *MemToReg = MemToRegCircuit(OpCode);
-  *MemWrite = MemWriteCircuit(OpCode);
-  *Branch   = BranchCircuit(OpCode);
-  *RegDst   = RegDstCircuit(OpCode);
-  *Link     = LinkCircuit(OpCode);
-  *RegWrite = or_gate3(*RegDst, *Link, or_gate(*MemToReg, AddiCircuit(OpCode)));
-  *Jump     = or_gate(JumpCircuit(OpCode), *Link);
-  ALUOp[0] = or_gate3(AddiCircuit(OpCode), *MemToReg, *MemWrite);
-  ALUOp[1] = *Branch;
-  *ALUImm   = ALUOp[0];
+  MemToReg = MemToRegCircuit(OpCode);
+  MemWrite = MemWriteCircuit(OpCode);
+  Branch   = BranchCircuit(OpCode);
+  RegDst   = RegDstCircuit(OpCode);
+  Link     = LinkCircuit(OpCode);
+  RegWrite = or_gate3(RegDst, Link, or_gate(MemToReg, AddiCircuit(OpCode)));
+  Jump     = or_gate(JumpCircuit(OpCode), Link);
+  ALUOp[0] = or_gate3(AddiCircuit(OpCode), MemToReg, MemWrite);
+  ALUOp[1] = Branch;
+  ALUImm   = ALUOp[0];
 }
+
+void updateAluControl(){
+    //ALUOp != {0,0} we have to update the alu contorl bits
+    BIT ADD[] = {0, 0, 1, 0};
+    BIT SUB[] = {0, 1, 1, 0};
+    for(int i=0; i<4; i++)
+        ALUControl[i] = multiplexor2(ALUOp[0], ALUControl[i], ADD[i]);
+    for(int i=0; i<4; i++)
+        ALUControl[i] = multiplexor2(ALUOp[1], ALUControl[i], SUB[i]);
+}
+
+void ALU_Control(BIT* funct)
+{
+
+  JumpReg  = and_gate3(JumpRegCircuit(funct),   \
+          not_gate(or_gate(ALUOp[0], ALUOp[1])), RegDst);
+  //Set RegWrite to 0 if we are preforming a jr instruction
+  RegWrite = multiplexor2(JumpReg, RegWrite, 0);
+  ALUControl[3] = AluControl_Circuit0(funct);
+  ALUControl[2] = not_gate(or_gate(AluControl_Circuit1(funct), ALUControl[3]));
+  ALUControl[1] = not_gate(or_gate(not_gate(ALUControl[2]), BinvertCircuit(funct)));
+  ALUControl[0] = LessCircuit(funct);
+  updateAluControl();
+}
+
 int main(){
     BIT lw  [] = {1,1,0,0,0,1};
     BIT sw  [] = {1,1,0,1,0,1};
@@ -209,114 +196,229 @@ int main(){
     BIT J   [] = {0,1,0,0,0,0};
     BIT JAL [] = {1,1,0,0,0,0};
 
-    BIT RegDst = FALSE;
-    BIT Jump = FALSE;
-    BIT Branch = FALSE;
-    BIT MemToReg = FALSE;
-    BIT ALUOp[2] = {FALSE};
-    BIT MemWrite = FALSE;
-    BIT ALUImm = FALSE;
-    BIT RegWrite = FALSE;
-    BIT Link = FALSE;
+    BIT T_funct [] = {0,0,0,1,0,0};
+
+    /****************************************************************************************************************************/
     /* TEST LOAD WORD*/
-    Control(lw, &RegDst, &Jump, &Branch, &MemToReg, \
-            ALUOp, &MemWrite, &ALUImm, &RegWrite,   \
-            &Link);
-    printf("ALUOP: %d%d\nMemToReg: %d\nRegDst: %d\nALUImm: %d\nBranch: %d\nMemWrite: %d\nJump: %d\nLink: %d\nRegWrite: %d\n", \
-            ALUOp[1], ALUOp[0], MemToReg, RegDst, ALUImm, Branch, MemWrite, Jump, Link, RegWrite);
+    /****************************************************************************************************************************/
+    Control(lw);
+    ALU_Control(T_funct);
+
     assert(!ALUOp[1] && ALUOp[0] && MemToReg && !RegDst && ALUImm \
             && !Branch && !Jump && !Link && RegWrite && !MemWrite);
+    assert(!ALUControl[0] && !ALUControl[1] && \
+            ALUControl[2] && !ALUControl[3]);
+    assert(!JumpReg);
+
     printf("PASSED\n");
+    /****************************************************************************************************************************/
+    /****************************************************************************************************************************/
 
 
+    /****************************************************************************************************************************/
     /* TEST STORE WORD*/
+    /****************************************************************************************************************************/
     RegDst = Jump = Branch = MemToReg = ALUOp[0] = ALUOp[1] = MemWrite = ALUImm = RegWrite = Link = FALSE;
 
-    Control(sw, &RegDst, &Jump, &Branch, &MemToReg, \
-            ALUOp, &MemWrite, &ALUImm, &RegWrite,   \
-            &Link);
+    Control(sw);
+    ALU_Control(T_funct);
 
     assert(!ALUOp[1] && ALUOp[0] && !MemToReg && !RegDst && ALUImm \
             && !Branch && !Jump && !Link && !RegWrite && MemWrite);
+    assert(!ALUControl[0] && !ALUControl[1] && \
+            ALUControl[2] && !ALUControl[3]);
+    assert(!JumpReg);
 
-    printf("\nALUOP: %d%d\nMemToReg: %d\nRegDst: %d\nALUImm: %d\nBranch: %d\nMemWrite: %d\nJump: %d\nLink: %d\nRegWrite: %d\n", \
-            ALUOp[1], ALUOp[0], MemToReg, RegDst, ALUImm, Branch, MemWrite, Jump, Link, RegWrite);
     printf("PASSED\n");
+    /****************************************************************************************************************************/
+    /****************************************************************************************************************************/
 
     
+    /****************************************************************************************************************************/
     /* TEST BEQ*/
+    /****************************************************************************************************************************/
     RegDst = Jump = Branch = MemToReg = ALUOp[0] = ALUOp[1] = MemWrite = ALUImm = RegWrite = Link = FALSE;
 
-    Control(beq, &RegDst, &Jump, &Branch, &MemToReg, \
-            ALUOp, &MemWrite, &ALUImm, &RegWrite,   \
-            &Link);
+    Control(beq);
+    ALU_Control(T_funct);
 
     assert(ALUOp[1] && !ALUOp[0] && !MemToReg && !RegDst && !ALUImm \
             && Branch && !Jump && !Link && !RegWrite && !MemWrite);
+    assert(!ALUControl[0] && ALUControl[1] && \
+            ALUControl[2] && !ALUControl[3]);
+    assert(!JumpReg);
 
-    printf("\nALUOP: %d%d\nMemToReg: %d\nRegDst: %d\nALUImm: %d\nBranch: %d\nMemWrite: %d\nJump: %d\nLink: %d\nRegWrite: %d\n", \
-            ALUOp[1], ALUOp[0], MemToReg, RegDst, ALUImm, Branch, MemWrite, Jump, Link, RegWrite);
     printf("PASSED\n");
+    /****************************************************************************************************************************/
+    /****************************************************************************************************************************/
 
+
+    /****************************************************************************************************************************/
     /* TEST addi*/
+    /****************************************************************************************************************************/
     RegDst = Jump = Branch = MemToReg = ALUOp[0] = ALUOp[1] = MemWrite = ALUImm = RegWrite = Link = FALSE;
 
-    Control(addi, &RegDst, &Jump, &Branch, &MemToReg, \
-            ALUOp, &MemWrite, &ALUImm, &RegWrite,   \
-            &Link);
-
+    Control(addi);
+    ALU_Control(T_funct);
 
     assert(!ALUOp[1] && ALUOp[0] && !MemToReg && !RegDst && ALUImm \
             && !Branch && !Jump && !Link && RegWrite && !MemWrite);
+    assert(!ALUControl[0] && !ALUControl[1] && \
+            ALUControl[2] && !ALUControl[3]);
+    assert(!JumpReg);
 
-    printf("\nALUOP: %d%d\nMemToReg: %d\nRegDst: %d\nALUImm: %d\nBranch: %d\nMemWrite: %d\nJump: %d\nLink: %d\nRegWrite: %d\n", \
-            ALUOp[1], ALUOp[0], MemToReg, RegDst, ALUImm, Branch, MemWrite, Jump, Link, RegWrite);
     printf("PASSED\n");
+    /****************************************************************************************************************************/
+    /****************************************************************************************************************************/
 
+    /****************************************************************************************************************************/
     /* TEST and*/
+    /****************************************************************************************************************************/
     RegDst = Jump = Branch = MemToReg = ALUOp[0] = ALUOp[1] = MemWrite = ALUImm = RegWrite = Link = FALSE;
 
-    Control(R, &RegDst, &Jump, &Branch, &MemToReg, \
-            ALUOp, &MemWrite, &ALUImm, &RegWrite,   \
-            &Link);
+    BIT and [] = {0,0,1,0,0,1};
+    Control(R);
+    ALU_Control(and);
 
 
     assert(!ALUOp[1] && !ALUOp[0] && !MemToReg && RegDst && !ALUImm \
             && !Branch && !Jump && !Link && RegWrite && !MemWrite);
+    assert(!ALUControl[0] && !ALUControl[1] && \
+            !ALUControl[2] && !ALUControl[3]);
+    assert(!JumpReg);
 
-    printf("\nALUOP: %d%d\nMemToReg: %d\nRegDst: %d\nALUImm: %d\nBranch: %d\nMemWrite: %d\nJump: %d\nLink: %d\nRegWrite: %d\n", \
-            ALUOp[1], ALUOp[0], MemToReg, RegDst, ALUImm, Branch, MemWrite, Jump, Link, RegWrite);
     printf("PASSED\n");
+    /****************************************************************************************************************************/
+    /****************************************************************************************************************************/
 
-    /* TEST jump*/
+
+    /****************************************************************************************************************************/
+    /* Test or*/
+    /****************************************************************************************************************************/
     RegDst = Jump = Branch = MemToReg = ALUOp[0] = ALUOp[1] = MemWrite = ALUImm = RegWrite = Link = FALSE;
 
-    Control(J, &RegDst, &Jump, &Branch, &MemToReg, \
-            ALUOp, &MemWrite, &ALUImm, &RegWrite,   \
-            &Link);
+    BIT or [] = {1,0,1,0,0,1};
+    Control(R);
+    ALU_Control(or);
 
+
+    assert(!ALUOp[1] && !ALUOp[0] && !MemToReg && RegDst && !ALUImm \
+            && !Branch && !Jump && !Link && RegWrite && !MemWrite);
+    assert(!ALUControl[0] && !ALUControl[1] && \
+            !ALUControl[2] && ALUControl[3]);
+    assert(!JumpReg);
+
+    printf("PASSED\n");
+    /****************************************************************************************************************************/
+    /****************************************************************************************************************************/
+
+    /****************************************************************************************************************************/
+    /* Test add*/
+    /****************************************************************************************************************************/
+    RegDst = Jump = Branch = MemToReg = ALUOp[0] = ALUOp[1] = MemWrite = ALUImm = RegWrite = Link = FALSE;
+
+    BIT add [] = {0,0,0,0,0,1};
+    Control(R);
+    ALU_Control(add);
+
+
+    assert(!ALUOp[1] && !ALUOp[0] && !MemToReg && RegDst && !ALUImm \
+            && !Branch && !Jump && !Link && RegWrite && !MemWrite);
+    assert(!ALUControl[0] && !ALUControl[1] && \
+            ALUControl[2] && !ALUControl[3]);
+    assert(!JumpReg);
+
+    printf("PASSED\n");
+    /****************************************************************************************************************************/
+    /****************************************************************************************************************************/
+
+    /****************************************************************************************************************************/
+    /* Test sub*/
+    /****************************************************************************************************************************/
+    RegDst = Jump = Branch = MemToReg = ALUOp[0] = ALUOp[1] = MemWrite = ALUImm = RegWrite = Link = FALSE;
+
+    BIT sub [] = {0,1,0,0,0,1};
+    Control(R);
+    ALU_Control(sub);
+
+
+    assert(!ALUOp[1] && !ALUOp[0] && !MemToReg && RegDst && !ALUImm \
+            && !Branch && !Jump && !Link && RegWrite && !MemWrite);
+    assert(!ALUControl[0] && ALUControl[1] && \
+            ALUControl[2] && !ALUControl[3]);
+    assert(!JumpReg);
+
+    printf("PASSED\n");
+    /****************************************************************************************************************************/
+    /****************************************************************************************************************************/
+
+    /****************************************************************************************************************************/
+    /* Test slt*/
+    /****************************************************************************************************************************/
+    RegDst = Jump = Branch = MemToReg = ALUOp[0] = ALUOp[1] = MemWrite = ALUImm = RegWrite = Link = FALSE;
+
+    BIT slt [] = {0,1,0,1,0,1};
+    Control(R);
+    ALU_Control(slt);
+
+
+    assert(!ALUOp[1] && !ALUOp[0] && !MemToReg && RegDst && !ALUImm \
+            && !Branch && !Jump && !Link && RegWrite && !MemWrite);
+    assert(ALUControl[0] && ALUControl[1] && \
+            ALUControl[2] && !ALUControl[3]);
+    assert(!JumpReg);
+
+    printf("PASSED\n");
+    /****************************************************************************************************************************/
+    /****************************************************************************************************************************/
+
+    /****************************************************************************************************************************/
+    /* Test jr*/
+    /****************************************************************************************************************************/
+    RegDst = Jump = Branch = MemToReg = ALUOp[0] = ALUOp[1] = MemWrite = ALUImm = RegWrite = Link = FALSE;
+
+    BIT jr [] = {0,0,0,1,0,0};
+    Control(R);
+    ALU_Control(jr);
+
+
+    assert(!ALUOp[1] && !ALUOp[0] && !MemToReg && RegDst && !ALUImm \
+            && !Branch && !Jump && !Link && !RegWrite && !MemWrite);
+    assert(JumpReg);
+
+    printf("PASSED\n");
+    /****************************************************************************************************************************/
+    /****************************************************************************************************************************/
+
+
+    /****************************************************************************************************************************/
+    /* TEST jump*/
+    /****************************************************************************************************************************/
+    RegDst = Jump = Branch = MemToReg = ALUOp[0] = ALUOp[1] = MemWrite = ALUImm = RegWrite = Link = FALSE;
+
+    Control(J);
 
     assert(!ALUOp[1] && !ALUOp[0] && !MemToReg && !RegDst && !ALUImm \
             && !Branch && Jump && !Link && !RegWrite && !MemWrite);
 
-    printf("\nALUOP: %d%d\nMemToReg: %d\nRegDst: %d\nALUImm: %d\nBranch: %d\nMemWrite: %d\nJump: %d\nLink: %d\nRegWrite: %d\n", \
-            ALUOp[1], ALUOp[0], MemToReg, RegDst, ALUImm, Branch, MemWrite, Jump, Link, RegWrite);
     printf("PASSED\n");
+    /****************************************************************************************************************************/
+    /****************************************************************************************************************************/
 
-    /* TEST JAL*/
+    /****************************************************************************************************************************/
+    /* TEST jal*/
+    /****************************************************************************************************************************/
     RegDst = Jump = Branch = MemToReg = ALUOp[0] = ALUOp[1] = MemWrite = ALUImm = RegWrite = Link = FALSE;
 
-    Control(JAL, &RegDst, &Jump, &Branch, &MemToReg, \
-            ALUOp, &MemWrite, &ALUImm, &RegWrite,   \
-            &Link);
+    Control(JAL);
 
 
     assert(!ALUOp[1] && !ALUOp[0] && !MemToReg && !RegDst && !ALUImm \
             && !Branch && Jump && Link && RegWrite && !MemWrite);
 
-    printf("\nALUOP: %d%d\nMemToReg: %d\nRegDst: %d\nALUImm: %d\nBranch: %d\nMemWrite: %d\nJump: %d\nLink: %d\nRegWrite: %d\n", \
-            ALUOp[1], ALUOp[0], MemToReg, RegDst, ALUImm, Branch, MemWrite, Jump, Link, RegWrite);
     printf("PASSED\n");
+    /****************************************************************************************************************************/
+    /****************************************************************************************************************************/
 
     return 0;
 }
