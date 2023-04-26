@@ -10,6 +10,7 @@ Prof. Slota
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "circuits.h"
 
 // define BIT type as a char (i.e., one byte)
 typedef char BIT;
@@ -59,14 +60,11 @@ int binary_to_integer(BIT* A);
 int get_instructions(BIT Instructions[][32]);
 
 void Instruction_Memory(BIT* ReadAddress, BIT* Instruction);
-void Control(BIT* OpCode,
-  BIT* RegDst, BIT* Jump, BIT* Branch, BIT* MemToReg,
-  BIT* ALUOp, BIT* MemWrite, BIT* ALUImm, BIT* RegWrite, 
-  BIT* Link);
+void Control(BIT* OpCode);
 void Read_Register(BIT* ReadRegister1, BIT* ReadRegister2,
   BIT* ReadData1, BIT* ReadData2);
 void Write_Register(BIT RegWrite, BIT* WriteRegister, BIT* WriteData);
-void ALU_Control(BIT* ALUOp, BIT* funct, BIT* ALUControl, BIT* JumpReg);
+void ALU_Control(BIT* funct);
 void ALU(BIT* ALUControl, BIT* Input1, BIT* Input2, BIT* Zero, BIT* Result);
 void Data_Memory(BIT MemWrite, BIT MemRead, 
   BIT* Address, BIT* WriteData, BIT* ReadData);
@@ -460,16 +458,18 @@ BIT MEM_Instruction[32][32] = {FALSE};
 BIT MEM_Data[32][32]        = {FALSE};
 BIT MEM_Register[32][32]    = {FALSE};
 
+
 BIT RegDst    = FALSE;
 BIT Jump      = FALSE;
 BIT Branch    = FALSE;
-BIT MemRead   = FALSE;
 BIT MemToReg  = FALSE;
 BIT ALUOp[2]  = {FALSE};
 BIT MemWrite  = FALSE;
-BIT ALUSrc    = FALSE;
+BIT ALUImm    = FALSE;
 BIT RegWrite  = FALSE;
 BIT Zero      = FALSE;
+BIT Link      = FALSE;
+BIT JumpReg   = FALSE;
 BIT ALUControl[4] = {FALSE};
 
 void print_instruction()
@@ -512,76 +512,22 @@ void Instruction_Memory(BIT* ReadAddress, BIT* Instruction)
   
 }
 
-BIT MemToRegCircuit(BIT* OpCode){
-    BIT return_bit = and_gate3(OpCode[0], OpCode[1], \
-                and_gate3(not_gate(OpCode[2]), not_gate(OpCode[3]), \
-                and_gate(not_gate(OpCode[4]), OpCode[5])));
-    return return_bit;
-}
-BIT MemWriteCircuit(BIT* OpCode){
-    BIT return_bit = and_gate3(OpCode[0], OpCode[1], \
-                and_gate3(not_gate(OpCode[2]), OpCode[3], \
-                and_gate(not_gate(OpCode[4]), OpCode[5])));
-    return return_bit;
-}
 
-BIT BranchCircuit(BIT* OpCode){
-    BIT return_bit =  and_gate3(not_gate(OpCode[0]), not_gate(OpCode[1]), \
-                and_gate3(OpCode[2], not_gate(OpCode[3]), \
-                and_gate(not_gate(OpCode[4]), not_gate(OpCode[5]) )));
-    return return_bit;
-}
-
-BIT RegDstCircuit(BIT* OpCode){
-    BIT return_bit =  and_gate3(not_gate(OpCode[0]), not_gate(OpCode[1]), \
-                and_gate3(not_gate(OpCode[2]), not_gate(OpCode[3]), \
-                and_gate(not_gate(OpCode[4]), not_gate(OpCode[5]) )));
-    return return_bit;
-}
-
-BIT LinkCircuit(BIT* OpCode){
-    BIT return_bit =  and_gate3(OpCode[0], OpCode[1], \
-                and_gate3(not_gate(OpCode[2]), not_gate(OpCode[3]), \
-                and_gate(not_gate(OpCode[4]), not_gate(OpCode[5]) )));
-    return return_bit;
-}
-
-BIT JumpCircuit(BIT* OpCode){
-    BIT return_bit =  and_gate3(not_gate(OpCode[0]), OpCode[1], \
-                and_gate3(not_gate(OpCode[2]), not_gate(OpCode[3]), \
-                and_gate(not_gate(OpCode[4]), not_gate(OpCode[5]) )));
-    return return_bit;
-
-}
-BIT AddiCircuit(BIT * OpCode){
-    BIT return_bit =  and_gate3(not_gate(OpCode[0]), not_gate(OpCode[1]), \
-                and_gate3(not_gate(OpCode[2]), OpCode[3], \
-                and_gate(not_gate(OpCode[4]), not_gate(OpCode[5]) )));
-    return return_bit;
-
-}
-
-void Control(BIT* OpCode,
-  BIT* RegDst, BIT* Jump, BIT* Branch, BIT* MemToReg,
-  BIT* ALUOp, BIT* MemWrite, BIT* ALUImm, BIT* RegWrite, 
-  BIT* Link) {
+void Control(BIT* OpCode) {
   // TODO: Set control bits for everything
   // Input: opcode field from the instruction
   // OUtput: all control lines get set 
   // Note: Can use SOP or similar approaches to determine bits
-  *MemToReg = MemToRegCircuit(OpCode);
-  *MemWrite = MemWriteCircuit(OpCode);
-  *Branch   = BranchCircuit(OpCode);
-  *RegDst   = RegDstCircuit(OpCode);
-  *Link     = LinkCircuit(OpCode);
-  *RegWrite = or_gate3(*RegDst, *Link, or_gate(*MemToReg, AddiCircuit(OpCode)));
-  *Jump     = or_gate(JumpCircuit(OpCode), *Link);
-  ALUOp[0] = or_gate3(AddiCircuit(OpCode), *MemToReg, *MemWrite);
-  ALUOp[1] = *Branch;
-  *ALUImm   = ALUOp[0];
-
-
-  
+  MemToReg = MemToRegCircuit(OpCode);
+  MemWrite = MemWriteCircuit(OpCode);
+  Branch   = BranchCircuit(OpCode);
+  RegDst   = RegDstCircuit(OpCode);
+  Link     = LinkCircuit(OpCode);
+  RegWrite = or_gate3(RegDst, Link, or_gate(MemToReg, AddiCircuit(OpCode)));
+  Jump     = or_gate(JumpCircuit(OpCode), Link);
+  ALUOp[0] = or_gate3(AddiCircuit(OpCode), MemToReg, MemWrite);
+  ALUOp[1] = Branch;
+  ALUImm   = ALUOp[0];
 }
 
 void Read_Register(BIT* ReadRegister1, BIT* ReadRegister2,
@@ -628,21 +574,28 @@ void Write_Register(BIT RegWrite, BIT* WriteRegister, BIT* WriteData)
   
 }
 
-void ALU_Control(BIT* ALUOp, BIT* funct, BIT* ALUControl, BIT* JumpReg)
-{
-  // TODO: Implement ALU Control circuit
-  // Input: 2-bit ALUOp from main control circuit, 6-bit funct field from the
-  //        binary instruction
-  // Output:4-bit ALUControl for input into the ALU
-  // Note: Can use SOP or similar approaches to determine bits
+void updateAluControl(){
+    //ALUOp != {0,0} we have to update the alu contorl bits
+    BIT ADD[] = {0, 0, 1, 0};
+    BIT SUB[] = {0, 1, 1, 0};
+    for(int i=0; i<4; i++)
+        ALUControl[i] = multiplexor2(ALUOp[0], ALUControl[i], ADD[i]);
+    for(int i=0; i<4; i++)
+        ALUControl[i] = multiplexor2(ALUOp[1], ALUControl[i], SUB[i]);
+}
 
-  //0000 - AND
-  //0001 - OR
-  //0010 - ADD
-  //0110 - SUB
-  //1110 - SLT
-  //1111 - return bit* a -- jr instruction
-  
+void ALU_Control(BIT* funct)
+{
+
+  JumpReg  = and_gate3(JumpRegCircuit(funct),   \
+          not_gate(or_gate(ALUOp[0], ALUOp[1])), RegDst);
+  //Set RegWrite to 0 if we are preforming a jr instruction
+  RegWrite = multiplexor2(JumpReg, RegWrite, 0);
+  ALUControl[3] = AluControl_Circuit0(funct);
+  ALUControl[2] = not_gate(or_gate(AluControl_Circuit1(funct), ALUControl[3]));
+  ALUControl[1] = not_gate(or_gate(not_gate(ALUControl[2]), BinvertCircuit(funct)));
+  ALUControl[0] = LessCircuit(funct);
+  updateAluControl();
 }
 
 void ALU1(BIT A, BIT B, BIT Ainvert, BIT Binvert, BIT CarryIn, BIT Less, 
