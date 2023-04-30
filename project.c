@@ -165,6 +165,26 @@ void decoder5(BIT* I, BIT EN, BIT* O)
     O[i] = and_gate(EN, O[i]);
   
 }
+void adder1(BIT A, BIT B, BIT CarryIn, BIT* CarryOut, BIT* Sum)
+{
+  // TODO: implement a 1-bit adder
+  // Note: you can copy+paste this from your or my Lab 5
+  
+  BIT x0 = xor_gate(A, B);
+  *Sum = xor_gate(CarryIn, x0);
+  
+  BIT y0 = and_gate(x0, CarryIn);
+  BIT y1 = and_gate(A, B);
+  *CarryOut = or_gate(y0, y1);
+}
+
+void adder32(BIT* A, BIT* B, BIT CarryIn, BIT* Result){
+  BIT CarryOut = FALSE;
+  adder1(A[0], B[0], CarryIn, &CarryOut, &Result[0]);
+  for (int i = 1; i < 32; ++i) {
+    adder1(A[i], B[i], CarryOut, &CarryOut, &Result[i]);
+  }
+}
 
 BIT multiplexor2(BIT S, BIT I0, BIT I1)
 {
