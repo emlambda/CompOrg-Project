@@ -205,7 +205,10 @@ void multiplexor2_32(BIT S, BIT* I0, BIT* I1, BIT* Output)
 
 BIT multiplexor4(BIT S0, BIT S1, BIT I0, BIT I1, BIT I2, BIT I3)
 {
-  BIT x0 , x1, x2, x3 = FALSE;
+  BIT x0 =FALSE; 
+  BIT x1 = FALSE; 
+  BIT x2 = FALSE; 
+  BIT x3 = FALSE;
   BIT S[] = {S0, S1};
   BIT O[] = {I0,I1,I2,I3};
   decoder2(S,TRUE, O);
@@ -699,7 +702,7 @@ void Extend_Sign16(BIT* Input, BIT* Output)
   for(int i = 0; i < 16; i++){
     Output[i] = Input[i];
   }
-  for(; i < 32; i++){
+  for(int i = 16; i < 32; i++){
     Output[i] = Input[15];
   }
   
@@ -734,14 +737,14 @@ int main()
   int counter = get_instructions(MEM_Instruction);
   
   // load program and run
-  copy_bits(ZERO, PC);
+  /*copy_bits(ZERO, PC);
   copy_bits(THIRTY_TWO, MEM_Register[29]);
   
   while (binary_to_integer(PC) < counter) {
     print_instruction();
     updateState();
     print_state();
-  }
+  }*/
 
   return 0;
 }
