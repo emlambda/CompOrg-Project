@@ -10,6 +10,7 @@ Prof. Slota
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "circuits.h"
 
 // define BIT type as a char (i.e., one byte)
 typedef char BIT;
@@ -59,13 +60,11 @@ int binary_to_integer(BIT* A);
 int get_instructions(BIT Instructions[][32]);
 
 void Instruction_Memory(BIT* ReadAddress, BIT* Instruction);
-void Control(BIT* OpCode,
-  BIT* RegDst, BIT* Jump, BIT* Branch, BIT* MemRead, BIT* MemToReg,
-  BIT* ALUOp, BIT* MemWrite, BIT* ALUSrc, BIT* RegWrite);
+void Control(BIT* OpCode);
 void Read_Register(BIT* ReadRegister1, BIT* ReadRegister2,
   BIT* ReadData1, BIT* ReadData2);
 void Write_Register(BIT RegWrite, BIT* WriteRegister, BIT* WriteData);
-void ALU_Control(BIT* ALUOp, BIT* funct, BIT* ALUControl);
+void ALU_Control(BIT* funct);
 void ALU(BIT* ALUControl, BIT* Input1, BIT* Input2, BIT* Zero, BIT* Result);
 void Data_Memory(BIT MemWrite, BIT MemRead, 
   BIT* Address, BIT* WriteData, BIT* ReadData);
@@ -206,7 +205,7 @@ void multiplexor2_32(BIT S, BIT* I0, BIT* I1, BIT* Output)
 
 BIT multiplexor4(BIT S0, BIT S1, BIT I0, BIT I1, BIT I2, BIT I3)
 {
-  BIT x0, x1, x2, x3 = FALSE;
+  BIT x0 , x1, x2, x3 = FALSE;
   BIT S[] = {S0, S1};
   BIT O[] = {I0,I1,I2,I3};
   decoder2(S,TRUE, O);
@@ -246,6 +245,18 @@ void convert_to_binary_char(int a, char* A, int length)
   // This might be useful in your get_instructions() function, if you use the
   // same approach that I use. It also might not be needed if you directly
   // convert the instructions to the proper BIT format.
+  if (a >= 0) {
+    for (int i = 0; i < length; ++i) {
+      A[i] = (a % 2 == 1 ? '1' : '0');
+      a /= 2;
+    }
+  } else {
+    a += 1;
+    for (int i = 0; i < length; ++i) {
+      A[i] = (a % 2 == 0 ? '1' : '0');
+      a /= 2;
+    }
+  }
 }
 
 void convert_to_binary(int a, BIT* A)
@@ -281,6 +292,36 @@ int binary_to_integer(BIT* A)
   return (int)a;
 }
 
+void set_register(char* input, char* output) 
+{
+  if(strcmp(input, "zero") == 0) {
+    strncpy(output, "00000", 5);
+  }
+  else if(strcmp(input, "v0") == 0) {
+    strncpy(output, "01000", 5);
+  }
+  else if(strcmp(input, "a0") == 0) {
+    strncpy(output, "00100", 5);
+  }
+  if (strcmp(input, "t0") == 0) {
+    strncpy(output, "00010", 5);
+  }
+  else if(strcmp(input, "t1") == 0) {
+    strncpy(output, "10010", 5);
+  }
+  else if (strcmp(input, "s0") == 0) {
+    strncpy(output, "00001", 5);
+  }
+  else if(strcmp(input, "s1") == 0) {
+    strncpy(output, "10001", 5);
+  }
+  else if(strcmp(input, "sp") == 0) {
+    strncpy(output, "10111", 5);
+  }
+  else if(strcmp(input, "ra") == 0) {
+    strncpy(output, "11111", 5);
+  }
+}
 
 /******************************************************************************/
 /* Parsing functions */
@@ -305,9 +346,126 @@ int get_instructions(BIT Instructions[][32])
     // - Convert immediate field and jump address field to binary
     // - Use registers to get rt, rd, rs fields
     // Note: I parse everything as strings, then convert to BIT array at end
-  
+    BIT t_output[32] = {FALSE};
+    char inst[256] = {0};
+    char op1[256] = {0};
+    char op2[256] = {0};
+    char op3[256] = {0};
+
+    sscanf(line, "%s %s %s %s", inst, op1, op2, op3); //instructions of length 4
+    char output[33] = {0}; 
+    char rs[6] = {0}; //1
+    char rt[6] = {0}; //2 
+    char rd[6] = {0}; //3
+    char imm[17] = {0};
+    char address[27] = {0};
+
+    if(strcmp(inst, "lw") == 0) { //I-type
+      convert_to_binary_char(atoi(op3), imm, 16);
+      set_register(op1, rt);
+      set_register(op2, rs);
+      strncpy(&output[0], imm, 16);
+      strncpy(&output[16], rt, 5);
+      strncpy(&output[21], rs, 5);
+      strncpy(&output[26], "110001", 6);      
+    } else if(strcmp(inst, "sw") == 0) { //I-type
+      set_register(op1, rt);
+      set_register(op2, rs);    
+      convert_to_binary_char(atoi(op3), imm, 16);
+      strncpy(&output[0], imm, 16); 
+      strncpy(&output[16], rt, 5);
+      strncpy(&output[21], rs, 5);
+      strncpy(&output[26], "110101", 6);
+    } else if(strcmp(inst, "beq") == 0) { //I-type
+      convert_to_binary_char(atoi(op3), imm, 16);
+      set_register(op1, rt);
+      set_register(op2, rs);
+      strncpy(&output[0], imm, 16);
+      strncpy(&output[16], rt, 5);
+      strncpy(&output[21], rs, 5); 
+      strncpy(&output[26], "001000", 6);
+    } else if(strcmp(inst, "addi") == 0) { //I-type
+      convert_to_binary_char(atoi(op3), imm, 16);
+      set_register(op1, rt);
+      set_register(op2, rs);
+      strncpy(&output[0], imm, 16);
+      strncpy(&output[16], rt, 5);
+      strncpy(&output[21], rs, 5); 
+      strncpy(&output[26], "000100", 6);
+    } else if(strcmp(inst, "and") == 0) { //R-type
+      set_register(op1, rd);
+      set_register(op2, rs);
+      set_register(op3, rt);
+      strncpy(&output[0], "001001", 6);
+      strncpy(&output[6], "00000", 5);
+      strncpy(&output[11], rd, 5);
+      strncpy(&output[16], rt, 5);
+      strncpy(&output[21], rs, 5);
+      strncpy(&output[26], "000000", 6);  
+    } else if(strcmp(inst, "or") == 0) { //R-type 
+      set_register(op1, rd);
+      set_register(op2, rs);
+      set_register(op3, rt);
+      strncpy(&output[0], "101001", 6);
+      strncpy(&output[6], "00000", 5);
+      strncpy(&output[11], rd, 5);
+      strncpy(&output[16], rt, 5);
+      strncpy(&output[21], rs, 5);
+      strncpy(&output[26], "000000", 6); 
+    } else if(strcmp(inst, "add") == 0) { // R-type
+      set_register(op1, rd);
+      set_register(op2, rs);
+      set_register(op3, rt);
+      strncpy(&output[0], "000001", 6);
+      strncpy(&output[6], "00000", 5);
+      strncpy(&output[11], rd, 5);
+      strncpy(&output[16], rt, 5);
+      strncpy(&output[21], rs, 5);
+      strncpy(&output[26], "000000", 6);     
+    } else if(strcmp(inst, "sub") == 0) { // R-type
+      set_register(op1, rd);
+      set_register(op2, rs);
+      set_register(op3, rt);
+      strncpy(&output[0], "010001", 6);
+      strncpy(&output[6], "00000", 5);
+      strncpy(&output[11], rd, 5);
+      strncpy(&output[16], rt, 5);
+      strncpy(&output[21], rs, 5);
+      strncpy(&output[26], "000000", 6); 
+    } else if(strcmp(inst, "slt") == 0) { //R-type 
+      set_register(op1, rd);
+      set_register(op2, rs);
+      set_register(op3, rt);
+      strncpy(&output[0], "000001", 6);
+      strncpy(&output[6], "00000", 5);
+      strncpy(&output[11], rd, 5);
+      strncpy(&output[16], rt, 5);
+      strncpy(&output[21], rs, 5);
+      strncpy(&output[26], "010101", 6); 
+    } else if (strcmp(inst, "j") == 0) { //J-type
+      convert_to_binary_char(atoi(op1), address, 26);
+      strncpy(&output[0], address, 26);
+      strncpy(&output[26], "010000", 6);      
+    } else if(strcmp(inst, "jal") == 0) {  //J-type
+      convert_to_binary_char(atoi(op1), address, 26);
+      strncpy(&output[0], address, 26);
+      strncpy(&output[26], "110000", 6);  
+    } else if(strcmp(inst, "jr") == 0) { //R-type
+      set_register(op1, rs); 
+      strncpy(&output[0], "000100", 6);
+      strncpy(&output[6], rs, 5);
+      strncpy(&output[11], "000000000000000", 15);
+      strncpy(&output[26], "000100", 6);
+    } 
+    // Convert 'output' char array to 't_output' BIT array
+    for (int i = 0; i < 32; i++) {
+      t_output[i] = (output[i] == '1') ? TRUE : FALSE;
+    }
+    // Copy t_output to Instructions at the current instruction_count index
+    memcpy(Instructions[instruction_count], t_output, sizeof(BIT) * 32);
+
+    instruction_count++;
   }
-  
   return instruction_count;
 }
 
@@ -320,16 +478,18 @@ BIT MEM_Instruction[32][32] = {FALSE};
 BIT MEM_Data[32][32]        = {FALSE};
 BIT MEM_Register[32][32]    = {FALSE};
 
+
 BIT RegDst    = FALSE;
 BIT Jump      = FALSE;
 BIT Branch    = FALSE;
-BIT MemRead   = FALSE;
 BIT MemToReg  = FALSE;
 BIT ALUOp[2]  = {FALSE};
 BIT MemWrite  = FALSE;
-BIT ALUSrc    = FALSE;
+BIT ALUImm    = FALSE;
 BIT RegWrite  = FALSE;
 BIT Zero      = FALSE;
+BIT Link      = FALSE;
+BIT JumpReg   = FALSE;
 BIT ALUControl[4] = {FALSE};
 
 void print_instruction()
@@ -373,15 +533,22 @@ void Instruction_Memory(BIT* ReadAddress, BIT* Instruction)
   
 }
 
-void Control(BIT* OpCode,
-  BIT* RegDst, BIT* Jump, BIT* Branch, BIT* MemRead, BIT* MemToReg,
-  BIT* ALUOp, BIT* MemWrite, BIT* ALUSrc, BIT* RegWrite)
-{
+
+void Control(BIT* OpCode) {
   // TODO: Set control bits for everything
   // Input: opcode field from the instruction
   // OUtput: all control lines get set 
   // Note: Can use SOP or similar approaches to determine bits
-  
+  MemToReg = MemToRegCircuit(OpCode);
+  MemWrite = MemWriteCircuit(OpCode);
+  Branch   = BranchCircuit(OpCode);
+  RegDst   = RegDstCircuit(OpCode);
+  Link     = LinkCircuit(OpCode);
+  RegWrite = or_gate3(RegDst, Link, or_gate(MemToReg, AddiCircuit(OpCode)));
+  Jump     = or_gate(JumpCircuit(OpCode), Link);
+  ALUOp[0] = or_gate3(AddiCircuit(OpCode), MemToReg, MemWrite);
+  ALUOp[1] = Branch;
+  ALUImm   = ALUOp[0];
 }
 
 void Read_Register(BIT* ReadRegister1, BIT* ReadRegister2,
@@ -423,21 +590,28 @@ void Write_Register(BIT RegWrite, BIT* WriteRegister, BIT* WriteData)
   
 }
 
-void ALU_Control(BIT* ALUOp, BIT* funct, BIT* ALUControl)
-{
-  // TODO: Implement ALU Control circuit
-  // Input: 2-bit ALUOp from main control circuit, 6-bit funct field from the
-  //        binary instruction
-  // Output:4-bit ALUControl for input into the ALU
-  // Note: Can use SOP or similar approaches to determine bits
+void updateAluControl(){
+    //ALUOp != {0,0} we have to update the alu contorl bits
+    BIT ADD[] = {0, 0, 1, 0};
+    BIT SUB[] = {0, 1, 1, 0};
+    for(int i=0; i<4; i++)
+        ALUControl[i] = multiplexor2(ALUOp[0], ALUControl[i], ADD[i]);
+    for(int i=0; i<4; i++)
+        ALUControl[i] = multiplexor2(ALUOp[1], ALUControl[i], SUB[i]);
+}
 
-  //0000 - AND
-  //0001 - OR
-  //0010 - ADD
-  //0110 - SUB
-  //1110 - SLT
-  //1111 - return bit* a -- jr instruction
-  
+void ALU_Control(BIT* funct)
+{
+
+  JumpReg  = and_gate3(JumpRegCircuit(funct),   \
+          not_gate(or_gate(ALUOp[0], ALUOp[1])), RegDst);
+  //Set RegWrite to 0 if we are preforming a jr instruction
+  RegWrite = multiplexor2(JumpReg, RegWrite, 0);
+  ALUControl[3] = AluControl_Circuit0(funct);
+  ALUControl[2] = not_gate(or_gate(AluControl_Circuit1(funct), ALUControl[3]));
+  ALUControl[1] = not_gate(or_gate(not_gate(ALUControl[2]), BinvertCircuit(funct)));
+  ALUControl[0] = LessCircuit(funct);
+  updateAluControl();
 }
 
 void ALU1(BIT A, BIT B, BIT Ainvert, BIT Binvert, BIT CarryIn, BIT Less, 
@@ -511,6 +685,7 @@ void Data_Memory(BIT MemWrite, BIT MemRead,
   for (int i = 0; i < (32*(int)MemRead); i++){
     multiplexor2_32(Address[i], ReadData,MEM_Register[i],ReadData);
   }
+
   for (int i = 0; i < (32*(int)MemWrite); i++){
     multiplexor2_32(Address[i], MEM_Register[i],WriteData,MEM_Register[i]);
   }
@@ -570,4 +745,3 @@ int main()
 
   return 0;
 }
-
