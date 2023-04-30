@@ -366,8 +366,9 @@ void Instruction_Memory(BIT* ReadAddress, BIT* Instruction)
   // Input: 32-bit instruction address
   // Output: 32-bit binary instruction
   // Note: Useful to use a 5-to-32 decoder here
+  
   for(int i = 0; i < 32; i++){
-
+    Instruction[i] = MEM_Data[binary_to_integer(ReadAddress)][i];
   }
   
 }
@@ -507,19 +508,11 @@ void Data_Memory(BIT MemWrite, BIT MemRead,
   // Input: 32-bit address, control flags for read/write, and data to write
   // Output: data read if processing a lw instruction
   // Note: Implementation similar as above
-  //mux to select value to be stored in register
-  BIT add1[5];
-  BIT add2[5];
-  BIT 
-  for(int i = 6; i < 11; i++){
-    add1[i-6] = Address[i];
+  for (int i = 0; i < (32*(int)MemRead); i++){
+    multiplexor2_32(Address[i], ReadData,MEM_Register[i],ReadData);
   }
-  for(; i < 16; i++){
-    add2[i-11] = Address[i];
-  }
-  Read_Register()
-  for (int i = 0; i< 32; i++){
-    
+  for (int i = 0; i < (32*(int)MemWrite); i++){
+    multiplexor2_32(Address[i], MEM_Register[i],WriteData,MEM_Register[i]);
   }
   
 }
