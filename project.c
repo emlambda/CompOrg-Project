@@ -395,17 +395,14 @@ void Read_Register(BIT* ReadRegister1, BIT* ReadRegister2,
   BIT Result1[32] = {FALSE};
   decoder5(ReadRegister1, TRUE, Result1);
   for (int i = 0; i < 32; i++){
-    for (int j = 0; j < 32; j++){
-      ReadData1[j] = multiplexor2(Result1[i],MEM_Register[i][j],ReadData1[j]);
-    }
+      multiplexor2_32(Result1[i], ReadData1,MEM_Register[i],ReadData1);
+
   }
 
   BIT Result2[32] = {FALSE};
   decoder5(ReadRegister2, TRUE, Result2);
   for (int i = 0; i < 32; i++){
-    for (int j = 0; j < 32; j++){
-      ReadData2[j] = multiplexor2(Result2[i],MEM_Register[i][j],ReadData2[j]);
-    }
+    multiplexor2_32(Result2[i], ReadData2,MEM_Register[i],ReadData2);
   }
   
 }
@@ -419,9 +416,7 @@ void Write_Register(BIT RegWrite, BIT* WriteRegister, BIT* WriteData)
   BIT Result[32] = {FALSE};
   decoder5(WriteRegister, RegWrite, Result);
   for (int i = 0; i < 32; i++){
-    for (int j = 0; j < 32; j++){
-      MEM_Register[i][j] = multiplexor2(Result[i],WriteData[j], MEM_Register[i][j]);
-    }
+    multiplexor2_32(Result[i], MEM_Register[i],WriteData,MEM_Register[i]);
   }
 
   
