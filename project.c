@@ -531,7 +531,7 @@ void Instruction_Memory(BIT* ReadAddress, BIT* Instruction)
   // Note: Useful to use a 5-to-32 decoder here
   
   for(int i = 0; i < 32; i++){
-    Instruction[i] = MEM_Data[binary_to_integer(ReadAddress)][i];
+    Instruction[i] = MEM_Instruction[binary_to_integer(ReadAddress)][i];
   }
   
 }
