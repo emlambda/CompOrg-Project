@@ -164,6 +164,26 @@ void decoder5(BIT* I, BIT EN, BIT* O)
     O[i] = and_gate(EN, O[i]);
   
 }
+void adder1(BIT A, BIT B, BIT CarryIn, BIT* CarryOut, BIT* Sum)
+{
+  // TODO: implement a 1-bit adder
+  // Note: you can copy+paste this from your or my Lab 5
+  
+  BIT x0 = xor_gate(A, B);
+  *Sum = xor_gate(CarryIn, x0);
+  
+  BIT y0 = and_gate(x0, CarryIn);
+  BIT y1 = and_gate(A, B);
+  *CarryOut = or_gate(y0, y1);
+}
+
+void adder32(BIT* A, BIT* B, BIT CarryIn, BIT* Result){
+  BIT CarryOut = FALSE;
+  adder1(A[0], B[0], CarryIn, &CarryOut, &Result[0]);
+  for (int i = 1; i < 32; ++i) {
+    adder1(A[i], B[i], CarryOut, &CarryOut, &Result[i]);
+  }
+}
 
 BIT multiplexor2(BIT S, BIT I0, BIT I1)
 {
@@ -542,17 +562,14 @@ void Read_Register(BIT* ReadRegister1, BIT* ReadRegister2,
   BIT Result1[32] = {FALSE};
   decoder5(ReadRegister1, TRUE, Result1);
   for (int i = 0; i < 32; i++){
-    for (int j = 0; j < 32; j++){
-      ReadData1[j] = multiplexor2(Result1[i],MEM_Register[i][j],ReadData1[j]);
-    }
+      multiplexor2_32(Result1[i], ReadData1,MEM_Register[i],ReadData1);
+
   }
 
   BIT Result2[32] = {FALSE};
   decoder5(ReadRegister2, TRUE, Result2);
   for (int i = 0; i < 32; i++){
-    for (int j = 0; j < 32; j++){
-      ReadData2[j] = multiplexor2(Result2[i],MEM_Register[i][j],ReadData2[j]);
-    }
+    multiplexor2_32(Result2[i], ReadData2,MEM_Register[i],ReadData2);
   }
   
 }
@@ -566,9 +583,7 @@ void Write_Register(BIT RegWrite, BIT* WriteRegister, BIT* WriteData)
   BIT Result[32] = {FALSE};
   decoder5(WriteRegister, RegWrite, Result);
   for (int i = 0; i < 32; i++){
-    for (int j = 0; j < 32; j++){
-      MEM_Register[i][j] = multiplexor2(Result[i],WriteData[j], MEM_Register[i][j]);
-    }
+    multiplexor2_32(Result[i], MEM_Register[i],WriteData,MEM_Register[i]);
   }
 
   
